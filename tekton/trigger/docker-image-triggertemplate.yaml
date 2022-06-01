@@ -1,0 +1,75 @@
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: docker-image-triggertemplate
+  namespace: tekton-pipelines
+spec:
+  params:
+    - name: git-revision
+      description: The git revision
+      default: master
+    - name: git-repository-url
+      description: The git repository url
+    - name: namespace
+      description: The namespace to create the resources
+    - name: repo-full-name
+      description: The GitHub repository full name
+    - name: repo
+      description: The GitHub repository name
+    - name: installation-id
+      description: GitHub app installation ID
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: $(tt.params.repo)-docker-image-pipelinerun-
+        namespace: $(tt.params.namespace)
+        labels: 
+          repo: $(tt.params.repo)
+      spec:
+        serviceAccountName: github-token-sa
+        pipelineRef:
+          name: docker-image-pipeline
+        params:
+          - name: url
+            value: '$(tt.params.git-repository-url)'
+          - name: branch
+            value: '$(tt.params.git-revision)'
+          - name: repo-full-name
+            value: '$(tt.params.repo-full-name)'
+          - name: repo
+            value: '$(tt.params.repo)'
+          - name: installation-id
+            value: '$(tt.params.installation-id)'
+          - name: application-id
+            value: '146399'
+          - name: region
+            value: 'ap-southeast-1'
+          - name: tekton-dashboard-url
+            value: 'https://ci.finxflo.name'
+          - name: aws-account-id
+            value: '651281726850'
+          - name: image-name
+            value: '651281726850.dkr.ecr.ap-southeast-1.amazonaws.com/$(tt.params.repo)'
+        workspaces:
+          - name: ws
+            persistentVolumeClaim:
+              claimName: shared-workspace
+          - name: secrets
+            secret:
+              secretName: ecr-auth
+          - name: configmap-template
+            configmap:
+              name: github-token-template
+          - name: github-private-key
+            secret:
+              secretName: github-private-key
+          - name: github-token
+            secret:
+              secretName: github-token-$(tt.params.repo)
+        podTemplate:
+          tolerations:
+            - key: "cicd"
+              operator: "Equal"
+              value: "true"
+              effect: "NoSchedule"

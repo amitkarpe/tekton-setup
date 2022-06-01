@@ -1,0 +1,45 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-and-push-image
+  namespace: tekton-pipelines
+spec:
+  workspaces:
+    - name: secrets
+      mountPath: /tekton/home/.aws
+    - name: output
+  params:
+    - name: image
+      description: Reference of the image buildah will produce.
+    - name: context
+      description: Path to the directory to use as context.
+      default: .
+    - name: commit
+      description: commit
+    - name: password
+      description: ECR password
+    - name: aws-account-id
+      description: AWS account ID
+    - name: region
+      description: AWS region
+    - name: working-directory
+      description: working directory
+  steps:
+    - name: build-and-push
+      image: quay.io/buildah/stable:v1.17.0
+      script: |
+        # Login to ecr
+        buildah login --username AWS --password "$(params.password)" "$(params.aws-account-id)".dkr.ecr."$(params.region)".amazonaws.com
+        # Build image
+        cd $(workspaces.output.path)/$(params.working-directory)
+        # Following lines are for troubleshooting
+        pwd
+        # ls -lah
+        # ls -lh build/libs/dependency || true
+        # ls -lh dist || true
+        buildah bud -t $(params.image):$(params.commit) $(params.context)
+        # Push to ECR
+        buildah push $(params.image):$(params.commit)
+      securityContext:
+        privileged: true

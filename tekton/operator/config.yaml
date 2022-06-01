@@ -1,0 +1,13 @@
+apiVersion: operator.tekton.dev/v1alpha1
+kind: TektonConfig
+metadata:
+  name: config
+spec:
+  targetNamespace: tekton-pipelines
+  profile: basic
+  config: 
+    tolerations:
+      - key: "cicd"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"

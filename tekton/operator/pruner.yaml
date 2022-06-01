@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: resource-pruner
+  namespace: tekton-pipelines
+spec:
+  schedule: 0 7 * * *
+  concurrencyPolicy: Forbid
+  suspend: false
+  jobTemplate:
+    metadata:
+      creationTimestamp: null
+    spec:
+      backoffLimit: 3
+      template:
+        metadata:
+          creationTimestamp: null
+        spec:
+          containers:
+            - name: pruner-tkn-tekton-pipelines-dg2qk
+              image: >-
+                gcr.io/tekton-releases/dogfooding/tkn@sha256:025de221fb059ca24a3b2d988889ea34bce48dc76c0cf0d6b4499edb8c21325f
+              command:
+                - /bin/sh
+                - '-c'
+              args:
+                - >-
+                  tkn pipelinerun delete --keep=300 -n=tekton-pipelines -f ; tkn
+                  taskrun delete --keep=700 -n=tekton-pipelines -f ; 
+              resources: {}
+              terminationMessagePath: /dev/termination-log
+              terminationMessagePolicy: FallbackToLogsOnError
+              imagePullPolicy: IfNotPresent
+          tolerations:
+            - key: "cicd"
+              operator: "Equal"
+              value: "true"
+              effect: "NoSchedule" 
+          restartPolicy: OnFailure
+          terminationGracePeriodSeconds: 30
+          dnsPolicy: ClusterFirst
+          serviceAccountName: tekton-pipelines-controller
+          serviceAccount: tekton-pipelines-controller
+          securityContext: {}
+          schedulerName: default-scheduler
+      ttlSecondsAfterFinished: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
